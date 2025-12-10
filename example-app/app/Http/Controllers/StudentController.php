@@ -3,21 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\Student;
-use App\Models\Course; // 👈 IMPORTANTE: Necesitamos el modelo del Padre
+use App\Models\Course; // 👈 Importante: Necesitamos el modelo del Padre para los desplegables
 use Illuminate\Http\Request;
 
 class StudentController extends Controller
 {
     public function index()
     {
-        // Usamos 'with' ara optimizar la consulta y traer el curso asociado de golpe
+        // Usamos 'with' para optimizar la consulta (Eager Loading)
         $students = Student::with('course')->latest()->paginate(5);
+        
+        // compact: mete la variable $students en la "caja" para la vista
         return view('students.index', compact('students'));
     }
 
     public function create()
     {
-        // ➡️ PASO CLAVE: Traer todos los cursos para el desplegable
+        // Traemos todos los cursos para que el usuario elija en el desplegable
         $courses = Course::all();
         return view('students.create', compact('courses'));
     }
@@ -43,7 +45,6 @@ class StudentController extends Controller
 
     public function edit(Student $student)
     {
-        // ➡️ PASO CLAVE: Traer cursos para que pueda cambiar de curso si quiere
         $courses = Course::all();
         return view('students.edit', compact('student', 'courses'));
     }
@@ -68,5 +69,46 @@ class StudentController extends Controller
         $student->delete();
         return redirect()->route('students.index')
             ->with('success', 'Estudiante eliminado exitosamente.');
+    }
+
+    // 👇 ESTE ES EL NUEVO MÉTODO QUE NECESITAS PARA EXPORTAR
+    public function export()
+    {
+        $fileName = 'listado_estudiantes.csv';
+
+        // 1. Traemos estudiantes CON su curso para no hacer 100 consultas (Eager Loading)
+        $students = Student::with('course')->get();
+
+        $headers = array(
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        );
+
+        $callback = function() use($students) {
+            $file = fopen('php://output', 'w');
+
+            // 2. Escribimos la cabecera del CSV
+            fputcsv($file, ['ID', 'Nombre', 'Email', 'Curso Asignado', 'Fecha Registro']);
+
+            // 3. Recorremos cada estudiante y escribimos su fila
+            foreach ($students as $student) {
+                fputcsv($file, [
+                    $student->id,
+                    $student->name,
+                    $student->email,
+                    // Accedemos al nombre del curso a través de la relación
+                    $student->course->name ?? 'Sin Curso', 
+                    $student->created_at->format('d/m/Y'),
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        // 4. Devolvemos la descarga directa
+        return response()->stream($callback, 200, $headers);
     }
 }

@@ -3,7 +3,11 @@
 @section('content')
 <div class="d-flex justify-content-between mb-3">
     <h2>Lista de Estudiantes</h2>
-    <a class="btn btn-primary" href="{{ route('students.create') }}">Nuevo Estudiante</a>
+    {{-- 👇 Agrupamos los botones para que salgan juntos a la derecha --}}
+    <div>
+        <a class="btn btn-success" href="{{ route('students.export') }}">Exportar CSV</a>
+        <a class="btn btn-primary" href="{{ route('students.create') }}">Nuevo Estudiante</a>
+    </div>
 </div>
 
 @if (session('success'))
@@ -15,7 +19,7 @@
         <th>ID</th>
         <th>Nombre</th>
         <th>Email</th>
-        <th>Curso Asignado</th> <!-- Nueva Columna -->
+        <th>Curso Asignado</th>
         <th width="280px">Acciones</th>
     </tr>
     @foreach ($students as $student)
@@ -25,7 +29,8 @@
         <td>{{ $student->email }}</td>
         <td>
             {{-- Accedemos al objeto curso y luego a su nombre --}}
-            <span class="badge bg-secondary">{{ $student->course->name }}</span>
+            {{-- Usamos el operador ?? por si acaso se borró el curso --}}
+            <span class="badge bg-secondary">{{ $student->course->name ?? 'Sin Curso' }}</span>
         </td>
         <td>
             <a class="btn btn-info btn-sm" href="{{ route('students.show', $student->id) }}">Ver</a>
